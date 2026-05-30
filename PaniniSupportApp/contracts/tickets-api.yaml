@@ -1,0 +1,459 @@
+openapi: 3.0.3
+info:
+  title: Panini FIFA 2026 - Support Tickets API
+  description: API para gestión de tickets de soporte interno de Panini, relacionados con proveedores, distribución e inventario del álbum oficial FIFA World Cup 2026.
+  version: 1.0.0
+  contact:
+    name: Panini Mobile Team
+
+servers:
+  - url: https://api.panini-support.com/v1
+    description: Production
+  - url: https://staging.panini-support.com/v1
+    description: Staging
+
+tags:
+  - name: auth
+    description: Autenticación de usuarios internos
+  - name: tickets
+    description: Gestión de tickets de soporte
+
+paths:
+
+  # ─────────────────────────────────────────────
+  # AUTH
+  # ─────────────────────────────────────────────
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Autenticación de usuario interno
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: "operaciones@panini.com"
+              password: "secret123"
+      responses:
+        '200':
+          description: Login exitoso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Credenciales inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: Cierre de sesión
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Sesión cerrada exitosamente
+
+  # ─────────────────────────────────────────────
+  # TICKETS
+  # ─────────────────────────────────────────────
+  /tickets:
+    get:
+      tags: [tickets]
+      summary: Obtener listado de tickets
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/TicketStatus'
+          description: Filtrar por estado del ticket
+        - name: priority
+          in: query
+          schema:
+            $ref: '#/components/schemas/TicketPriority'
+          description: Filtrar por prioridad
+        - name: category
+          in: query
+          schema:
+            $ref: '#/components/schemas/TicketCategory'
+          description: Filtrar por categoría
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Listado de tickets obtenido exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags: [tickets]
+      summary: Crear nuevo ticket de soporte
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTicketRequest'
+            example:
+              title: "Faltante de stickers Serie América del Sur"
+              description: "El proveedor IMPSA reporta un faltante de 15,000 unidades de stickers de la serie América del Sur (números 201-250). Afecta distribución de Costa Rica y Panamá."
+              priority: "HIGH"
+              category: "INVENTORY_SHORTAGE"
+              supplierId: "SUP-004"
+              affectedRegion: "Central America"
+      responses:
+        '201':
+          description: Ticket creado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /tickets/{ticketId}:
+    get:
+      tags: [tickets]
+      summary: Obtener detalle de un ticket
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: ticketId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Detalle del ticket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketDto'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /tickets/{ticketId}/status:
+    patch:
+      tags: [tickets]
+      summary: Actualizar estado de un ticket
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: ticketId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTicketStatusRequest'
+            example:
+              status: "IN_PROGRESS"
+              comment: "Contactado al proveedor, en proceso de resolución."
+      responses:
+        '200':
+          description: Estado actualizado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /tickets/{ticketId}/priority:
+    patch:
+      tags: [tickets]
+      summary: Actualizar prioridad de un ticket
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: ticketId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTicketPriorityRequest'
+            example:
+              priority: "CRITICAL"
+              reason: "Impacta lanzamiento en mercado mexicano (mayor volumen)"
+      responses:
+        '200':
+          description: Prioridad actualizada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+# ─────────────────────────────────────────────
+# COMPONENTS
+# ─────────────────────────────────────────────
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    Unauthorized:
+      description: No autorizado — token inválido o expirado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    BadRequest:
+      description: Solicitud inválida
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalError:
+      description: Error interno del servidor
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+
+    # ── Auth ──────────────────────────────────
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT de acceso
+        user:
+          $ref: '#/components/schemas/UserDto'
+
+    UserDto:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [ADMIN, OPERATOR, VIEWER]
+
+    # ── Tickets ───────────────────────────────
+    TicketDto:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "TKT-2026-001"
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/TicketStatus'
+        priority:
+          $ref: '#/components/schemas/TicketPriority'
+        category:
+          $ref: '#/components/schemas/TicketCategory'
+        supplierId:
+          type: string
+        supplierName:
+          type: string
+        affectedRegion:
+          type: string
+        createdBy:
+          type: string
+        assignedTo:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          type: string
+          format: date-time
+          nullable: true
+        comments:
+          type: array
+          items:
+            $ref: '#/components/schemas/TicketCommentDto'
+
+    TicketCommentDto:
+      type: object
+      properties:
+        id:
+          type: string
+        authorName:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    TicketListResponse:
+      type: object
+      properties:
+        tickets:
+          type: array
+          items:
+            $ref: '#/components/schemas/TicketDto'
+        totalCount:
+          type: integer
+        page:
+          type: integer
+        size:
+          type: integer
+
+    CreateTicketRequest:
+      type: object
+      required: [title, description, priority, category, supplierId]
+      properties:
+        title:
+          type: string
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 2000
+        priority:
+          $ref: '#/components/schemas/TicketPriority'
+        category:
+          $ref: '#/components/schemas/TicketCategory'
+        supplierId:
+          type: string
+        affectedRegion:
+          type: string
+
+    UpdateTicketStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: '#/components/schemas/TicketStatus'
+        comment:
+          type: string
+          maxLength: 500
+
+    UpdateTicketPriorityRequest:
+      type: object
+      required: [priority]
+      properties:
+        priority:
+          $ref: '#/components/schemas/TicketPriority'
+        reason:
+          type: string
+          maxLength: 300
+
+    # ── Enums ─────────────────────────────────
+    TicketStatus:
+      type: string
+      enum:
+        - OPEN
+        - IN_PROGRESS
+        - PENDING_SUPPLIER
+        - RESOLVED
+        - CLOSED
+        - CANCELLED
+
+    TicketPriority:
+      type: string
+      enum:
+        - CRITICAL
+        - HIGH
+        - MEDIUM
+        - LOW
+
+    TicketCategory:
+      type: string
+      enum:
+        - INVENTORY_SHORTAGE
+        - DISTRIBUTION_DELAY
+        - SUPPLIER_QUALITY
+        - LOGISTICS_ERROR
+        - DUPLICATE_SHIPMENT
+        - INVOICE_DISCREPANCY
+        - PACKAGING_DAMAGE
+        - MISSING_DOCUMENTATION
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
